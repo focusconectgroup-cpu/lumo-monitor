@@ -1,0 +1,42 @@
+name: Vigia do site da Lumo
+
+on:
+  schedule:
+    # A cada 15 minutos. O GitHub pode atrasar alguns minutos em horario de pico.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      simular_falha:
+        description: "Simular uma falha para testar se o e-mail de aviso chega"
+        type: boolean
+        default: false
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir o site
+        env:
+          SIMULAR_FALHA: ${{ inputs.simular_falha || 'false' }}
+        run: bash scripts/checar.sh
+
+      # Em repositorio publico, o GitHub desliga o agendamento depois de 60 dias
+      # sem atividade. No dia 1 de cada mes este passo religa o vigia, o que
+      # zera a contagem sem precisar de commit. Roda mesmo se a conferencia falhar.
+      - name: Manter o agendamento ligado
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date -u +%d)" = "01" ] && [ "$(date -u +%H)" = "00" ]; then
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/monitor.yml/enable"
+            echo "agendamento religado"
+          else
+            echo "nada a fazer hoje"
+          fi
