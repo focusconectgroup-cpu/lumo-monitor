@@ -2,8 +2,9 @@ name: Vigia do site da Lumo
 
 on:
   schedule:
-    # A cada 15 minutos. O GitHub pode atrasar alguns minutos em horario de pico.
-    - cron: "*/15 * * * *"
+    # A cada 15 minutos, fora da hora cheia: o GitHub avisa que agendamentos
+    # no minuto 0 sao os mais atrasados ou pulados em horario de pico.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       simular_falha:
@@ -34,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$(date -u +%d)" = "01" ] && [ "$(date -u +%H)" = "00" ]; then
+          if [ "$(date -u +%d)" = "01" ] && [ "$(date -u +%H)" = "00" ] && [ "$(date -u +%M)" -lt 15 ]; then
             gh api -X PUT "repos/${{ github.repository }}/actions/workflows/monitor.yml/enable"
             echo "agendamento religado"
           else
